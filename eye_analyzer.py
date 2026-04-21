@@ -1,24 +1,20 @@
-import mediapipe as mp
-from mediapipe.tasks import python as mp_python
-from mediapipe.tasks.python import vision as mp_vision
 import numpy as np
 from PIL import Image, ImageDraw
-import urllib.request
-import os
 
-MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
-MODEL_PATH = "/tmp/face_landmarker.task"
+MEDIAPIPE_AVAILABLE = False
+_mp = None
 
-LEFT_IRIS  = [474, 475, 476, 477]
-RIGHT_IRIS = [469, 470, 471, 472]
-
-def download_model():
-    if not os.path.exists(MODEL_PATH):
-        urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
-
-class EyeAnalyzer:
-    def __init__(self):
-        download_model()
+def _try_load_mediapipe():
+    global MEDIAPIPE_AVAILABLE, _mp
+    try:
+        import mediapipe as mp
+        from mediapipe.tasks import python as mp_python
+        from mediapipe.tasks.python import vision as mp_vision
+        import urllib.request, os
+        MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
+        MODEL_PATH = "/tmp/face_landmarker.task"
+        if not os.path.exists(MODEL_PATH):
+            urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
         base_options = mp_python.BaseOptions(model_asset_path=MODEL_PATH)
         options = mp_vision.FaceLandmarkerOptions(
             base_options=base_options,
@@ -29,19 +25,31 @@ class EyeAnalyzer:
             min_face_presence_confidence=0.5,
             min_tracking_confidence=0.5,
         )
-        self.detector = mp_vision.FaceLandmarker.create_from_options(options)
+        detector = mp_vision.FaceLandmarker.create_from_options(options)
+        _mp = {"mp": mp, "detector": detector}
+        MEDIAPIPE_AVAILABLE = True
+    except Exception:
+        MEDIAPIPE_AVAILABLE = False
 
-    def analyze(self, image: Image.Image):
+_try_load_mediapipe()
+
+LEFT_IRIS  = [474, 475, 476, 477]
+RIGHT_IRIS = [469, 470, 471, 472]
+
+def analyze_iris(image: Image.Image):
+    """Returns (annotated_image, metrics_dict) or (None, {}) if unavailable."""
+    if not MEDIAPIPE_AVAILABLE or _mp is None:
+        return None, {}
+    try:
+        mp = _mp["mp"]
+        detector = _mp["detector"]
         img_rgb = image.convert("RGB")
         img_array = np.array(img_rgb)
         h, w = img_array.shape[:2]
-
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=img_array)
-        result = self.detector.detect(mp_image)
-
+        result = detector.detect(mp_image)
         if not result.face_landmarks:
             return None, {}
-
         landmarks = result.face_landmarks[0]
         annotated = img_rgb.copy()
         draw = ImageDraw.Draw(annotated)
@@ -76,3 +84,5 @@ class EyeAnalyzer:
             "symmetry_score":  round(symmetry,1),
             "ipd_px":          round(ipd,1),
         }
+    except Exception:
+        return None, {}
