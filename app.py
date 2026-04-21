@@ -434,54 +434,228 @@ tab1, tab2, tab3, tab4 = st.tabs([
 with tab1:
     st.markdown("""
     <div style="margin:1rem 0 1.5rem;">
-        <div style="font-family:'Space Grotesk',sans-serif;font-size:1.4rem;
+        <div style="font-family:\'Space Grotesk\',sans-serif;font-size:1.4rem;
              font-weight:700;color:#E2E8F0;margin-bottom:0.3rem;">
-             Iris Detection & Analysis</div>
+             Myopia Screening Tool</div>
         <div style="font-size:0.85rem;color:#475569;">
-             Upload a clear frontal face photo — MediaPipe will detect and
-             analyse both iris landmarks in real time.</div>
+             Based on the far-point detection method from the Ocular-AI research paper.
+             Enter the maximum distance at which you can clearly read text on a screen.</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── SECTION 1: Far-Point Calculator (Primary) ──────────────
+    st.markdown("""
+    <div class="glass-card" style="border-color:rgba(0,212,255,0.25);">
+        <div class="section-title">Step 1 — Far-Point Distance Test</div>
+        <div style="font-size:0.85rem;color:#64748B;line-height:1.9;margin-bottom:1rem;">
+            Hold your device at arm\'s length. Slowly move it away from your eyes while
+            looking at the text below. When the text <strong style="color:#00D4FF;">just starts
+            to blur</strong>, note the distance and enter it below.
+            <br/>If you wear glasses, do this test <strong style="color:#F87171;">without</strong> them.
+        </div>
+        <div style="background:#0A1628;border:1px solid rgba(0,212,255,0.15);border-radius:10px;
+             padding:1.5rem;text-align:center;margin-bottom:1.2rem;">
+            <div style="font-family:\'Space Grotesk\',sans-serif;font-size:1.1rem;
+                 font-weight:600;color:#E2E8F0;letter-spacing:0.08em;">
+                OCULAR-AI VISION SCREENING TEST
+            </div>
+            <div style="font-size:0.85rem;color:#64748B;margin-top:6px;letter-spacing:0.05em;">
+                Can you read this line clearly? Move back until you cannot.
+            </div>
+            <div style="font-size:0.72rem;color:#475569;margin-top:4px;">
+                Fine print: note the distance when this line starts to blur.
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    col_input, col_result = st.columns([1, 1.2], gap="large")
+
+    with col_input:
+        st.markdown('<div class="label-tag" style="color:#00D4FF;margin-bottom:8px;">Enter your far-point distance</div>', unsafe_allow_html=True)
+        distance_cm = st.number_input(
+            "Distance (centimetres)",
+            min_value=5.0,
+            max_value=600.0,
+            value=50.0,
+            step=1.0,
+            help="The distance at which text just starts to blur. Normal vision = 600+ cm"
+        )
+        st.markdown("""
+        <div style="font-size:0.75rem;color:#334155;margin-top:6px;line-height:1.7;">
+            Tip: use a ruler or measuring tape for accuracy.
+            Average arm length ≈ 60 cm for reference.
+        </div>
+        """, unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+        st.markdown('<div class="label-tag" style="color:#7C3AED;margin-bottom:8px;">Formula used</div>', unsafe_allow_html=True)
+        st.markdown("""
+        <div style="background:#0A0A1A;border:1px solid rgba(124,58,237,0.2);
+             border-radius:8px;padding:0.8rem 1rem;font-family:\'Space Grotesk\',sans-serif;">
+            <div style="color:#A78BFA;font-size:1rem;font-weight:700;letter-spacing:0.05em;">
+                D = −100 ÷ d(cm)
+            </div>
+            <div style="color:#475569;font-size:0.75rem;margin-top:4px;">
+                D = diopters &nbsp;|&nbsp; d = far-point distance in cm
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    with col_result:
+        diopters = -100.0 / distance_cm
+        abs_d = abs(diopters)
+
+        if distance_cm >= 600:
+            severity = "Normal / Emmetropic"
+            sev_color = "#06FFA5"
+            sev_desc = "No significant myopia detected. Far point is at infinity range."
+            recommendation = "Your vision appears normal. Regular annual eye check-ups are still recommended."
+        elif abs_d < 0.5:
+            severity = "Borderline"
+            sev_color = "#06FFA5"
+            sev_desc = "Very mild refractive error. May not require correction."
+            recommendation = "Consult an optometrist to confirm. Glasses may not be needed."
+        elif abs_d < 1.5:
+            severity = "Mild Myopia"
+            sev_color = "#00D4FF"
+            sev_desc = "Mild nearsightedness. Distance objects slightly blurry."
+            recommendation = "Low-power correction likely helpful for driving or watching screens."
+        elif abs_d < 3.0:
+            severity = "Moderate Myopia"
+            sev_color = "#F59E0B"
+            sev_desc = "Moderate nearsightedness. Clear vision limited to nearby objects."
+            recommendation = "Corrective lenses recommended. Please visit a licensed optometrist."
+        elif abs_d < 6.0:
+            severity = "High Myopia"
+            sev_color = "#F87171"
+            sev_desc = "High nearsightedness. Only very close objects are clear."
+            recommendation = "Corrective lenses essential. Annual retinal check-up strongly advised."
+        else:
+            severity = "Severe Myopia"
+            sev_color = "#FF4444"
+            sev_desc = "Severe nearsightedness. Risk of associated eye conditions increases."
+            recommendation = "Immediate professional evaluation recommended. Retinal health monitoring important."
+
+        lower = round(diopters - 0.25, 2)
+        upper = round(diopters + 0.25, 2)
+
+        st.markdown(f"""
+        <div style="background:#0A1628;border:2px solid {sev_color}33;border-radius:14px;
+             padding:1.4rem;text-align:center;margin-bottom:1rem;">
+            <div style="font-size:0.7rem;font-weight:600;letter-spacing:0.15em;
+                 text-transform:uppercase;color:#475569;margin-bottom:8px;">
+                Estimated Prescription
+            </div>
+            <div style="font-family:\'Space Grotesk\',sans-serif;font-size:3rem;
+                 font-weight:800;color:{sev_color};line-height:1;margin-bottom:4px;">
+                {diopters:.2f} D
+            </div>
+            <div style="font-size:0.78rem;color:#475569;margin-bottom:12px;">
+                Likely range: {lower:.2f} D to {upper:.2f} D
+            </div>
+            <div style="display:inline-block;background:{sev_color}22;border:1px solid {sev_color}55;
+                 color:{sev_color};padding:4px 16px;border-radius:20px;
+                 font-family:\'Space Grotesk\',sans-serif;font-weight:700;
+                 font-size:0.78rem;letter-spacing:0.06em;">
+                {severity}
+            </div>
+        </div>
+        <div style="background:#0D0D0D;border:1px solid #1a1a2e;border-radius:10px;
+             padding:1rem;margin-bottom:0.8rem;">
+            <div style="font-size:0.8rem;color:#94A3B8;line-height:1.8;">
+                <strong style="color:{sev_color};">Assessment:</strong> {sev_desc}
+            </div>
+        </div>
+        <div style="background:#0D0D0D;border:1px solid rgba(124,58,237,0.2);border-radius:10px;
+             padding:1rem;">
+            <div style="font-size:0.8rem;color:#94A3B8;line-height:1.8;">
+                <strong style="color:#A78BFA;">Recommendation:</strong> {recommendation}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("""
+    <div style="background:rgba(248,113,113,0.06);border:1px solid rgba(248,113,113,0.2);
+         border-radius:10px;padding:0.9rem 1.2rem;margin-top:1rem;">
+        <div style="font-size:0.76rem;color:#94A3B8;line-height:1.8;">
+            <strong style="color:#F87171;">⚠ Medical Disclaimer:</strong>
+            This is a <strong>research prototype</strong> for screening purposes only.
+            Results are estimates based on the far-point formula (D = −100/d).
+            Accuracy is ±0.38–0.62 diopters (validated in the research study).
+            This tool does <strong>not</strong> replace a professional eye examination.
+            Always consult a licensed optometrist or ophthalmologist for diagnosis and prescription.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    # ── SECTION 2: Reference Chart ─────────────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown('<div class="section-title" style="font-size:0.85rem;">Reference — Far-Point Distance vs Myopia Severity</div>', unsafe_allow_html=True)
+
+    import plotly.graph_objects as go
+    ref_distances = [600, 200, 100, 67, 50, 40, 33, 25, 20, 17, 14]
+    ref_diopters  = [-100/d for d in ref_distances]
+    ref_labels    = [f"{d}cm → {abs(-100/d):.2f}D" for d in ref_distances]
+    ref_colors    = ["#06FFA5" if abs(v) < 0.5 else "#00D4FF" if abs(v) < 1.5 else "#F59E0B" if abs(v) < 3 else "#F87171" for v in ref_diopters]
+
+    fig_ref = go.Figure()
+    fig_ref.add_trace(go.Bar(
+        x=ref_labels,
+        y=[abs(v) for v in ref_diopters],
+        marker_color=ref_colors,
+        marker_line_color="#050B18",
+        marker_line_width=1.5,
+        text=[f"{abs(v):.2f}D" for v in ref_diopters],
+        textposition="outside",
+        textfont=dict(color="#94A3B8", size=10),
+    ))
+
+    if distance_cm < 600:
+        fig_ref.add_hline(
+            y=abs(diopters),
+            line_dash="dash",
+            line_color="#00D4FF",
+            annotation_text=f"Your result: {abs(diopters):.2f}D",
+            annotation_font_color="#00D4FF",
+        )
+
+    fig_ref.update_layout(
+        paper_bgcolor="#050B18",
+        plot_bgcolor="rgba(10,22,40,0.6)",
+        font=dict(color="#64748B", family="Inter", size=10),
+        showlegend=False,
+        margin=dict(t=20,b=10,l=10,r=10),
+        xaxis=dict(gridcolor="#1a1a1a", tickfont=dict(color="#334155", size=9)),
+        yaxis=dict(title=dict(text="Diopters (absolute)", font=dict(color="#475569")),
+                   gridcolor="#1a1a1a", tickfont=dict(color="#475569")),
+        height=220,
+    )
+    st.plotly_chart(fig_ref, use_container_width=True)
+
+    # ── SECTION 3: Iris Overlay (Optional) ─────────────────────
+    st.markdown("<br>", unsafe_allow_html=True)
+    st.markdown("""
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:0.5rem;">
+        <div class="section-title" style="margin:0;">Iris Detection Overlay</div>
+        <span style="background:rgba(124,58,237,0.15);border:1px solid rgba(124,58,237,0.3);
+              color:#A78BFA;padding:2px 10px;border-radius:12px;font-size:0.7rem;
+              font-weight:600;letter-spacing:0.06em;">Optional · Research Feature</span>
+    </div>
+    <div style="font-size:0.82rem;color:#475569;margin-bottom:1rem;">
+        Upload a frontal face photo to visualise MediaPipe iris landmark detection.
+        This demonstrates the computer vision component of the research pipeline.
     </div>
     """, unsafe_allow_html=True)
 
     uploaded = st.file_uploader(
-        "Upload a frontal face image",
+        "Upload a frontal face image (optional)",
         type=["jpg","jpeg","png"],
-        help="Works best with a clear, well-lit frontal face photo"
+        key="iris_upload"
     )
 
-    if not uploaded:
-        st.markdown("""
-        <div class="eye-scan-box">
-            <div style="position:relative;display:inline-block;margin-bottom:1.2rem;">
-                <div style="width:90px;height:90px;border-radius:50%;
-                     border:2px solid rgba(0,212,255,0.4);
-                     display:flex;align-items:center;justify-content:center;
-                     font-size:2.5rem;
-                     box-shadow:0 0 30px rgba(0,212,255,0.1),inset 0 0 30px rgba(0,212,255,0.05);
-                     animation:pulse-ring 2s infinite;">
-                    👁
-                </div>
-            </div>
-            <div style="font-family:'Space Grotesk',sans-serif;font-weight:600;
-                 color:#00D4FF;font-size:1rem;letter-spacing:0.06em;text-transform:uppercase;">
-                Upload a Face Image</div>
-            <div style="color:#334155;font-size:0.82rem;margin-top:0.4rem;">
-                JPG or PNG · Clear frontal face · Good lighting</div>
-            <div style="margin-top:1.2rem;display:flex;justify-content:center;gap:1.5rem;
-                 flex-wrap:wrap;">
-                <span style="font-size:0.75rem;color:#475569;">✓ Both eyes visible</span>
-                <span style="font-size:0.75rem;color:#475569;">✓ No sunglasses</span>
-                <span style="font-size:0.75rem;color:#475569;">✓ Well lit</span>
-            </div>
-        </div>
-        <style>
-        @keyframes pulse-ring {
-            0%,100% { box-shadow: 0 0 20px rgba(0,212,255,0.1); }
-            50% { box-shadow: 0 0 40px rgba(0,212,255,0.3), 0 0 60px rgba(0,212,255,0.1); }
-        }
-        </style>
-        """, unsafe_allow_html=True)
-    else:
+    if uploaded:
+        from eye_analyzer import analyze_iris, MEDIAPIPE_AVAILABLE
         image = Image.open(uploaded).convert("RGB")
         max_size = 1024
         w, h = image.size
@@ -489,87 +663,67 @@ with tab1:
             scale = max_size / max(w,h)
             image = image.resize((int(w*scale), int(h*scale)), Image.LANCZOS)
 
-        with st.spinner("Scanning iris landmarks..."):
-            analyzer = EyeAnalyzer()
-            annotated, metrics = analyzer.analyze(image)
-
-        if annotated is None:
-            st.markdown("""
-            <div class="glass-card" style="text-align:center;padding:2rem;
-                 border-color:rgba(248,113,113,0.3);">
-                <div style="font-size:2rem;margin-bottom:0.5rem;">😔</div>
-                <div style="color:#F87171;font-family:'Space Grotesk',sans-serif;
-                     font-weight:600;letter-spacing:0.06em;">No Face Detected</div>
-                <div style="color:#475569;font-size:0.85rem;margin-top:0.4rem;">
-                    Try a clearer frontal photo with both eyes visible.</div>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            col1, col2 = st.columns(2, gap="large")
+        if not MEDIAPIPE_AVAILABLE:
+            col1, col2 = st.columns(2, gap="medium")
             with col1:
-                st.markdown('<div class="label-tag">Original</div>', unsafe_allow_html=True)
-                st.image(image, use_column_width=True)
+                st.markdown('<div class="label-tag">Uploaded Image</div>', unsafe_allow_html=True)
+                st.image(image, use_container_width=True)
             with col2:
-                st.markdown('<div class="label-tag" style="color:#00D4FF;">Iris Scan Overlay</div>', unsafe_allow_html=True)
-                st.image(annotated, use_column_width=True)
-
-            st.markdown("<br>", unsafe_allow_html=True)
-
-            c1, c2, c3, c4 = st.columns(4)
-            with c1: st.metric("Left Iris (px)", f"{metrics['left_radius_px']}")
-            with c2: st.metric("Right Iris (px)", f"{metrics['right_radius_px']}")
-            with c3: st.metric("Symmetry Score", f"{metrics['symmetry_score']}%")
-            with c4: st.metric("IPD (px)", f"{metrics['ipd_px']}")
-
-            st.markdown("<br>", unsafe_allow_html=True)
-            sym = metrics["symmetry_score"]
-            sym_color = "#06FFA5" if sym >= 90 else "#F59E0B" if sym >= 75 else "#F87171"
-            sym_label = "Excellent" if sym >= 90 else "Good" if sym >= 75 else "Asymmetric"
-
-            st.markdown(f"""
-            <div class="glass-card">
-                <div class="section-title">Analysis Summary</div>
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
-                    <div>
-                        <div class="label-tag">Iris Symmetry</div>
-                        <div style="display:flex;align-items:center;gap:8px;margin-top:4px;">
-                            <div style="flex:1;height:6px;background:rgba(255,255,255,0.05);
-                                 border-radius:3px;overflow:hidden;">
-                                <div style="width:{sym}%;height:100%;
-                                     background:{sym_color};border-radius:3px;
-                                     transition:width 1s ease;"></div>
-                            </div>
-                            <span style="color:{sym_color};font-weight:700;
-                                  font-family:Space Grotesk,sans-serif;
-                                  font-size:0.9rem;">{sym}% · {sym_label}</span>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="label-tag">Detection Status</div>
-                        <div style="color:#06FFA5;font-weight:600;font-size:0.9rem;margin-top:4px;">
-                            ✓ Both iris landmarks detected successfully</div>
+                st.markdown("""
+                <div class="glass-card" style="height:100%;display:flex;flex-direction:column;
+                     justify-content:center;text-align:center;border-color:rgba(124,58,237,0.3);">
+                    <div style="font-size:1.8rem;margin-bottom:0.5rem;">🔬</div>
+                    <div style="font-family:\'Space Grotesk\',sans-serif;font-weight:600;
+                         color:#A78BFA;font-size:0.85rem;">Iris overlay unavailable</div>
+                    <div style="color:#475569;font-size:0.78rem;margin-top:0.5rem;line-height:1.7;">
+                        MediaPipe native libraries are not supported on this platform.
+                        The myopia screening tool above fully works independently.
                     </div>
                 </div>
-                <div style="margin-top:1rem;padding-top:1rem;
-                     border-top:1px solid rgba(0,212,255,0.08);
-                     font-size:0.78rem;color:#475569;line-height:1.8;">
-                    <strong style="color:#94A3B8;">Note:</strong>
-                    Iris size in pixels depends on image resolution and camera distance.
-                    For clinical diopter estimation, the app uses known face geometry
-                    calibrated against a reference card (see Methodology tab).
-                    The symmetry score reflects pupillary size balance between both eyes.
-                </div>
+                """, unsafe_allow_html=True)
+        else:
+            with st.spinner("Detecting iris landmarks..."):
+                annotated, metrics = analyze_iris(image)
+
+            if annotated is None:
+                col1, col2 = st.columns(2, gap="medium")
+                with col1:
+                    st.image(image, use_container_width=True)
+                with col2:
+                    st.markdown("""
+                    <div class="glass-card" style="text-align:center;padding:2rem;">
+                        <div style="color:#F87171;font-family:\'Space Grotesk\',sans-serif;
+                             font-weight:600;">No face detected</div>
+                        <div style="color:#475569;font-size:0.82rem;margin-top:0.4rem;">
+                            Try a clearer frontal photo with both eyes visible.</div>
+                    </div>
+                    """, unsafe_allow_html=True)
+            else:
+                col1, col2 = st.columns(2, gap="medium")
+                with col1:
+                    st.markdown('<div class="label-tag">Original</div>', unsafe_allow_html=True)
+                    st.image(image, use_container_width=True)
+                with col2:
+                    st.markdown('<div class="label-tag" style="color:#00D4FF;">Iris Scan Overlay</div>', unsafe_allow_html=True)
+                    st.image(annotated, use_container_width=True)
+
+                st.markdown("<br>", unsafe_allow_html=True)
+                c1,c2,c3,c4 = st.columns(4)
+                with c1: st.metric("Left Iris (px)", metrics["left_radius_px"])
+                with c2: st.metric("Right Iris (px)", metrics["right_radius_px"])
+                with c3: st.metric("Symmetry", f"{metrics[\'symmetry_score\']}%")
+                with c4: st.metric("IPD (px)", metrics["ipd_px"])
+    else:
+        st.markdown("""
+        <div style="border:1px dashed rgba(124,58,237,0.3);border-radius:12px;
+             padding:1.5rem 2rem;text-align:center;background:rgba(124,58,237,0.03);">
+            <div style="color:#475569;font-size:0.82rem;">
+                Upload a face image above to see iris landmark detection overlay.
             </div>
-            """, unsafe_allow_html=True)
+        </div>
+        """, unsafe_allow_html=True)
 
-            buf = io.BytesIO()
-            annotated.save(buf, format="PNG")
-            st.download_button("Download Scan Overlay", buf.getvalue(),
-                               "ocular_ai_scan.png", "image/png")
 
-# ════════════════════════════════════════════════════
-# TAB 2 — RESEARCH DATA
-# ════════════════════════════════════════════════════
 with tab2:
     st.markdown("""
     <div style="margin:1rem 0 1.5rem;">
