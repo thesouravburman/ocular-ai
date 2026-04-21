@@ -291,8 +291,12 @@ window.addEventListener('resize', () => {
 st.markdown("""
 <div style="display:flex;align-items:center;justify-content:space-between;
      padding:8px 0 20px 0;margin-bottom:8px;">
-    <span class="brand-watermark">⬡ sourav burman · cs engineer</span>
-    <span class="brand-watermark">ocular-ai · brainware university</span>
+    <span style="font-family:'Space Grotesk',sans-serif;font-size:0.68rem;
+         font-weight:600;color:rgba(0,212,255,0.55);letter-spacing:0.18em;
+         text-transform:uppercase;">⬡ sourav burman · cs engineer</span>
+    <span style="font-family:'Space Grotesk',sans-serif;font-size:0.68rem;
+         font-weight:600;color:rgba(0,212,255,0.55);letter-spacing:0.18em;
+         text-transform:uppercase;">ocular-ai · brainware university</span>
 </div>
 """, unsafe_allow_html=True)
 
