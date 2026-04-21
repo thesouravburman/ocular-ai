@@ -1,28 +1,48 @@
 import mediapipe as mp
+from mediapipe.tasks import python as mp_python
+from mediapipe.tasks.python import vision as mp_vision
 import numpy as np
 from PIL import Image, ImageDraw
+import urllib.request
+import os
+
+MODEL_URL = "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task"
+MODEL_PATH = "/tmp/face_landmarker.task"
 
 LEFT_IRIS  = [474, 475, 476, 477]
 RIGHT_IRIS = [469, 470, 471, 472]
 
+def download_model():
+    if not os.path.exists(MODEL_PATH):
+        urllib.request.urlretrieve(MODEL_URL, MODEL_PATH)
+
 class EyeAnalyzer:
     def __init__(self):
-        self.mp_face_mesh = mp.solutions.face_mesh
-        self.face_mesh = self.mp_face_mesh.FaceMesh(
-            max_num_faces=1,
-            refine_landmarks=True,
-            min_detection_confidence=0.5,
-            min_tracking_confidence=0.5
+        download_model()
+        base_options = mp_python.BaseOptions(model_asset_path=MODEL_PATH)
+        options = mp_vision.FaceLandmarkerOptions(
+            base_options=base_options,
+            output_face_blendshapes=False,
+            output_facial_transformation_matrixes=False,
+            num_faces=1,
+            min_face_detection_confidence=0.5,
+            min_face_presence_confidence=0.5,
+            min_tracking_confidence=0.5,
         )
+        self.detector = mp_vision.FaceLandmarker.create_from_options(options)
 
     def analyze(self, image: Image.Image):
         img_rgb = image.convert("RGB")
         img_array = np.array(img_rgb)
         h, w = img_array.shape[:2]
-        results = self.face_mesh.process(img_array)
-        if not results.multi_face_landmarks:
+
+        mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=img_array)
+        result = self.detector.detect(mp_image)
+
+        if not result.face_landmarks:
             return None, {}
-        landmarks = results.multi_face_landmarks[0].landmark
+
+        landmarks = result.face_landmarks[0]
         annotated = img_rgb.copy()
         draw = ImageDraw.Draw(annotated)
 
@@ -36,15 +56,11 @@ class EyeAnalyzer:
         rc, rr = get_iris(RIGHT_IRIS)
 
         for center, radius in [(lc, lr), (rc, rr)]:
-            cx, cy, r = int(center[0]), int(center[1]), int(radius)
+            cx, cy, r = int(center[0]), int(center[1]), max(int(radius), 3)
             draw.ellipse([cx-r-6,cy-r-6,cx+r+6,cy+r+6], outline=(0,80,100), width=1)
             draw.ellipse([cx-r-3,cy-r-3,cx+r+3,cy+r+3], outline=(0,150,180), width=1)
             draw.ellipse([cx-r,cy-r,cx+r,cy+r], outline=(0,212,255), width=3)
             draw.ellipse([cx-3,cy-3,cx+3,cy+3], fill=(6,255,165))
-            for dx in [(-r-14,0),(-r+8,0),(r-8,0),(r+14,0)]:
-                draw.line([cx+dx[0]-6,cy,cx+dx[0]+6,cy], fill=(0,212,255), width=1)
-            for dy in [(0,-r-14),(0,-r+8),(0,r-8),(0,r+14)]:
-                draw.line([cx,cy+dy[1]-6,cx,cy+dy[1]+6], fill=(0,212,255), width=1)
             draw.arc([cx-r+3,cy-r+3,cx+r-3,cy+r-3], 0, 90, fill=(6,255,165), width=2)
             draw.arc([cx-r+3,cy-r+3,cx+r-3,cy+r-3], 180, 270, fill=(6,255,165), width=2)
 
@@ -60,7 +76,3 @@ class EyeAnalyzer:
             "symmetry_score":  round(symmetry,1),
             "ipd_px":          round(ipd,1),
         }
-
-    def __del__(self):
-        try: self.face_mesh.close()
-        except: pass
