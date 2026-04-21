@@ -4,7 +4,7 @@ import pandas as pd
 import plotly.graph_objects as go
 from PIL import Image
 import io
-from eye_analyzer import EyeAnalyzer
+from eye_analyzer import analyze_iris, MEDIAPIPE_AVAILABLE
 
 st.set_page_config(
     page_title="Ocular-AI — Vision Research",
