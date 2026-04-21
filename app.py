@@ -711,14 +711,14 @@ with tab1:
                 c1,c2,c3,c4 = st.columns(4)
                 with c1: st.metric("Left Iris (px)", metrics["left_radius_px"])
                 with c2: st.metric("Right Iris (px)", metrics["right_radius_px"])
-                with c3: st.metric("Symmetry", f"{metrics[\'symmetry_score\']}%")
+                with c3: st.metric("Symmetry", f"{metrics['symmetry_score']}%")
                 with c4: st.metric("IPD (px)", metrics["ipd_px"])
     else:
         st.markdown("""
         <div style="border:1px dashed rgba(124,58,237,0.3);border-radius:12px;
              padding:1.5rem 2rem;text-align:center;background:rgba(124,58,237,0.03);">
             <div style="color:#475569;font-size:0.82rem;">
-                Upload a face image above to see iris landmark detection overlay.
+                Upload a face image above to see the iris landmark detection overlay.
             </div>
         </div>
         """, unsafe_allow_html=True)
