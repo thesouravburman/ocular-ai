@@ -5,7 +5,8 @@ import plotly.graph_objects as go
 from PIL import Image
 import io
 from eye_analyzer import analyze_iris, MEDIAPIPE_AVAILABLE
-
+from streamlit_autorefresh import st_autorefresh
+st_autorefresh(interval=300000, key="keepalive")
 st.set_page_config(
     page_title="Ocular-AI — Vision Research",
     page_icon="👁",
