@@ -1,5 +1,5 @@
 # 👁️ Ocular-AI — Smartphone Refractive Error Detection
-
+> © 2026 Sourav Burman — All Rights Reserved. See [LICENSE](./LICENSE) for terms.
 <p align="center">
   <img src="https://img.shields.io/badge/Research-Prototype-7C3AED?style=for-the-badge&logo=academia&logoColor=white"/>
   <img src="https://img.shields.io/badge/MediaPipe-Powered-00D4FF?style=for-the-badge&logo=google&logoColor=white"/>
