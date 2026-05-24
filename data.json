@@ -1,0 +1,39 @@
+{
+  "prevalence_by_age": [
+    {"age": 6,  "asia": 5.7,  "europe": 2.1,  "north_america": 2.8,  "global": 3.9},
+    {"age": 8,  "asia": 12.3, "europe": 4.8,  "north_america": 5.4,  "global": 7.5},
+    {"age": 10, "asia": 22.1, "europe": 8.2,  "north_america": 9.1,  "global": 13.1},
+    {"age": 12, "asia": 36.8, "europe": 13.4, "north_america": 14.2, "global": 21.5},
+    {"age": 14, "asia": 52.4, "europe": 19.7, "north_america": 20.8, "global": 30.9},
+    {"age": 16, "asia": 64.9, "europe": 26.3, "north_america": 27.4, "global": 39.5},
+    {"age": 18, "asia": 73.2, "europe": 32.8, "north_america": 33.9, "global": 46.6},
+    {"age": 20, "asia": 79.4, "europe": 38.1, "north_america": 39.2, "global": 52.2}
+  ],
+  "screen_time_risk": [
+    {"hours": 0,  "risk": 4.2},
+    {"hours": 1,  "risk": 8.1},
+    {"hours": 2,  "risk": 14.3},
+    {"hours": 3,  "risk": 22.7},
+    {"hours": 4,  "risk": 33.8},
+    {"hours": 5,  "risk": 46.2},
+    {"hours": 6,  "risk": 59.1},
+    {"hours": 8,  "risk": 73.4},
+    {"hours": 10, "risk": 82.6}
+  ],
+  "global_projection": [
+    {"year": 2000, "cases": 1406, "label": "2000",  "projected": false},
+    {"year": 2010, "cases": 1950, "label": "2010",  "projected": false},
+    {"year": 2020, "cases": 2620, "label": "2020",  "projected": false},
+    {"year": 2030, "cases": 3361, "label": "2030*", "projected": true},
+    {"year": 2040, "cases": 4108, "label": "2040*", "projected": true},
+    {"year": 2050, "cases": 4758, "label": "2050*", "projected": true}
+  ],
+  "meta": {
+    "sources": [
+      "Brien Holden Vision Institute 2016",
+      "WHO Global Vision Database 2023",
+      "Holden BA et al., Ophthalmology 2016"
+    ],
+    "note": "Projected years (2030-2050) marked with asterisk"
+  }
+}
