@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>OcularAI — Myopia Detection</title>
+  <meta name="description" content="Smartphone-based myopia screening using AI face mesh analysis" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="stylesheet" href="style.css" />
+  <!-- Chart.js: browser-friendly chart library (replaces Plotly) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- MediaPipe Face Mesh: Google's JS face landmark library -->
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/face_mesh/face_mesh.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
+</head>
+<body>
+
+<!-- Animated particle background -->
+<canvas id="particle-canvas" aria-hidden="true"></canvas>
+
+<!-- ── CALIBRATION OVERLAY (shown before first camera use) ── -->
+<div id="calibration-overlay" style="display:none" role="dialog" aria-modal="true" aria-label="Screen calibration">
+  <div class="calibration-card">
+    <div class="calibration-title">📏 Screen Calibration</div>
+    <p class="calibration-desc">
+      Hold a standard credit or debit card against your screen.<br>
+      Drag the slider until the <strong>cyan rectangle exactly matches</strong> your card's width.
+    </p>
+    <div id="card-rect-wrapper"><div id="card-rect"></div></div>
+    <input type="range" id="calib-slider" class="calib-slider" min="80" max="420" value="200"
+           aria-label="Card width adjustment" />
+    <p style="color:var(--text-muted);font-size:.8rem;margin-bottom:1.5rem;">
+      Current width: <strong id="calib-px-label" style="color:var(--cyan);">200 px</strong>
+    </p>
+    <button class="cam-btn cam-btn-primary" onclick="confirmCalibration()">
+      ✔ Confirm &amp; Continue
+    </button>
+    <p style="margin-top:.75rem;font-size:.72rem;color:var(--text-muted);">
+      Stored locally on your device only. Never sent anywhere.
+    </p>
+  </div>
+</div>
+
+<!-- ── MAIN APP ──────────────────────────────────────────── -->
+<div class="app-container">
+
+  <header class="site-header">
+    <div class="logo-badge"><span class="dot"></span> AI-Powered Vision Tool · v2.0</div>
+    <h1 class="site-title">OcularAI</h1>
+    <p class="site-subtitle">
+      Smartphone-based myopia screening powered by computer vision &amp; face mesh analysis
+    </p>
+  </header>
+
+  <!-- TAB NAVIGATION -->
+  <nav class="tabs-nav" role="tablist" aria-label="App sections">
+    <button class="tab-btn active" data-tab="analysis"    role="tab" aria-selected="true">👁 Eye Analysis</button>
+    <button class="tab-btn"        data-tab="camera"      role="tab">📷 Live Camera</button>
+    <button class="tab-btn"        data-tab="research"    role="tab">📊 Research Data</button>
+    <button class="tab-btn"        data-tab="methodology" role="tab">🔬 Methodology</button>
+    <button class="tab-btn"        data-tab="about"       role="tab">ℹ About</button>
+  </nav>
+
+  <!-- ════════════════════════════════════════════════════════
+       TAB 1 — EYE ANALYSIS
+       ════════════════════════════════════════════════════════ -->
+  <section id="tab-analysis" class="tab-panel active" role="tabpanel">
+
+    <div class="glass-card">
+      <h2 class="section-title">📐 Distance → Diopter <span>Calculator</span></h2>
+      <p class="section-body">
+        Enter your current screen-to-eye distance to estimate the myopia correction level
+        using the standard optometric formula.
+      </p>
+      <div style="display:flex;gap:1rem;align-items:center;margin:1.25rem 0;flex-wrap:wrap;">
+        <div style="flex:1;min-width:170px;">
+          <label for="dist-input" style="font-size:.8rem;color:var(--text-muted);display:block;margin-bottom:.4rem;">
+            Distance from screen (cm)
+          </label>
+          <input type="number" id="dist-input" value="30" min="5" max="300" step="1"
+            style="width:100%;padding:.65rem .9rem;background:rgba(10,22,40,.9);
+                   border:1px solid var(--glass-border);border-radius:8px;
+                   color:var(--text-primary);font-size:1.15rem;
+                   font-family:'Space Grotesk',sans-serif;"
+            oninput="updateCalc()" aria-label="Distance in centimetres" />
+        </div>
+        <div style="flex:1;min-width:150px;text-align:center;">
+          <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:.35rem;">Diopter Value</div>
+          <div id="diopter-result" class="metric-value" style="font-size:2.4rem;">-3.33 D</div>
+        </div>
+        <div style="flex:1;min-width:150px;text-align:center;">
+          <div style="font-size:.78rem;color:var(--text-muted);margin-bottom:.35rem;">Severity</div>
+          <span id="severity-result" class="severity-badge severity-moderate">Moderate</span>
+        </div>
+      </div>
+      <div class="formula-box">D = −100 ÷ distance (cm)</div>
+    </div>
+
+    <div class="glass-card">
+      <h2 class="section-title">📊 Myopia <span>Severity Scale</span></h2>
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-value" style="color:var(--mint);">0–3 D</div>
+          <div class="metric-label">Mild</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" style="color:var(--amber);">3–6 D</div>
+          <div class="metric-label">Moderate</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" style="color:#FF6432;">6–9 D</div>
+          <div class="metric-label">High</div>
+        </div>
+        <div class="metric-card">
+          <div class="metric-value" style="color:var(--red);">&gt; 9 D</div>
+          <div class="metric-label">Severe</div>
+        </div>
+      </div>
+      <p class="section-body" style="margin-top:.9rem;">
+        ⚠️ Educational estimates only. Always consult a licensed optometrist for professional assessment and prescription.
+      </p>
+    </div>
+
+    <div class="glass-card">
+      <h2 class="section-title">💡 Healthy Viewing <span>Distance Guide</span></h2>
+      <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;font-size:.87rem;">
+          <thead>
+            <tr style="border-bottom:1px solid var(--glass-border);">
+              <th style="text-align:left;padding:.6rem 0;color:var(--text-muted);font-weight:500;">Device</th>
+              <th style="text-align:right;padding:.6rem 0;color:var(--text-muted);font-weight:500;">Min (cm)</th>
+              <th style="text-align:right;padding:.6rem 0;color:var(--text-muted);font-weight:500;">Ideal (cm)</th>
+              <th style="text-align:right;padding:.6rem 0;color:var(--text-muted);font-weight:500;">D @ Ideal</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="border-bottom:1px solid rgba(0,212,255,.05);">
+              <td style="padding:.65rem 0;">📱 Smartphone</td>
+              <td style="text-align:right;color:var(--cyan);">30</td>
+              <td style="text-align:right;color:var(--mint);">40</td>
+              <td style="text-align:right;color:var(--text-muted);">−2.50 D</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(0,212,255,.05);">
+              <td style="padding:.65rem 0;">💻 Laptop</td>
+              <td style="text-align:right;color:var(--cyan);">45</td>
+              <td style="text-align:right;color:var(--mint);">60</td>
+              <td style="text-align:right;color:var(--text-muted);">−1.67 D</td>
+            </tr>
+            <tr style="border-bottom:1px solid rgba(0,212,255,.05);">
+              <td style="padding:.65rem 0;">🖥 Desktop Monitor</td>
+              <td style="text-align:right;color:var(--cyan);">60</td>
+              <td style="text-align:right;color:var(--mint);">70</td>
+              <td style="text-align:right;color:var(--text-muted);">−1.43 D</td>
+            </tr>
+            <tr>
+              <td style="padding:.65rem 0;">📺 TV</td>
+              <td style="text-align:right;color:var(--cyan);">200</td>
+              <td style="text-align:right;color:var(--mint);">300</td>
+              <td style="text-align:right;color:var(--text-muted);">−0.33 D</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════
+       TAB 2 — LIVE CAMERA
+       ════════════════════════════════════════════════════════ -->
+  <section id="tab-camera" class="tab-panel" role="tabpanel">
+
+    <div class="glass-card" style="text-align:center;">
+      <h2 class="section-title">📷 Live Distance <span>Measurement</span></h2>
+      <p class="section-body" style="margin-bottom:1.2rem;">
+        Opens your front camera, detects your iris positions in real-time, and calculates how
+        far you are from the screen every frame.
+      </p>
+
+      <div style="display:flex;gap:.75rem;justify-content:center;flex-wrap:wrap;margin-bottom:1.2rem;">
+        <button id="start-cam-btn" class="cam-btn cam-btn-primary" onclick="startCamera()">
+          📷 Start Camera
+        </button>
+        <button id="stop-cam-btn"  class="cam-btn cam-btn-secondary" onclick="stopCamera()" style="display:none;">
+          ⏹ Stop
+        </button>
+        <button class="cam-btn cam-btn-secondary" onclick="showCalibration()">
+          📏 Re-calibrate Screen
+        </button>
+      </div>
+
+      <div id="camera-video-container">
+        <video id="camera-video" playsinline autoplay muted aria-label="Camera feed"></video>
+        <canvas id="camera-canvas-overlay" aria-hidden="true"></canvas>
+      </div>
+
+      <div class="camera-result-panel">
+        <div class="live-metric">
+          <div class="live-value" id="live-distance">--</div>
+          <div class="live-label">Distance cm</div>
+        </div>
+        <div class="live-metric">
+          <div class="live-value" id="live-diopter">--</div>
+          <div class="live-label">Diopters</div>
+        </div>
+        <div class="live-metric">
+          <div class="live-value" id="live-ipd" style="font-size:1.35rem;">--</div>
+          <div class="live-label">IPD pixels</div>
+        </div>
+      </div>
+
+      <div style="margin-top:1rem;">
+        <div style="display:flex;justify-content:space-between;font-size:.74rem;
+                    color:var(--text-muted);margin-bottom:.35rem;">
+          <span id="frame-status">Waiting for camera…</span>
+          <span id="frame-counter">0 / 20 frames</span>
+        </div>
+        <div class="frame-progress">
+          <div class="frame-progress-bar" id="frame-bar" style="width:0%"></div>
+        </div>
+      </div>
+
+      <div style="margin-top:1rem;">
+        <span id="live-severity" class="severity-badge">—</span>
+      </div>
+    </div>
+
+    <div class="glass-card">
+      <h2 class="section-title">ℹ How It <span>Works</span></h2>
+      <p class="section-body">
+        <strong>1. Face detection</strong> — MediaPipe Face Mesh maps 478 landmark points on your face per frame.<br>
+        <strong>2. Iris centres</strong> — Landmarks #468 (left iris) and #473 (right iris) give the IPD in pixels.<br>
+        <strong>3. Distance formula</strong> — Known average IPD (63 mm) + camera focal length → distance via similar triangles.<br>
+        <strong>4. Smoothing</strong> — The last 20 frames are averaged to remove blink and motion noise.
+      </p>
+    </div>
+
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════
+       TAB 3 — RESEARCH DATA
+       ════════════════════════════════════════════════════════ -->
+  <section id="tab-research" class="tab-panel" role="tabpanel">
+
+    <div class="glass-card">
+      <h2 class="section-title">📈 Myopia Prevalence <span>by Age &amp; Region</span></h2>
+      <p class="section-body">Percentage of population with myopia across age groups (6–20 yrs).</p>
+      <div class="chart-wrapper"><canvas id="chart-prevalence"></canvas></div>
+    </div>
+
+    <div class="glass-card">
+      <h2 class="section-title">📱 Screen Time <span>Risk Correlation</span></h2>
+      <p class="section-body">Daily screen hours vs estimated myopia development risk (%). Colour: green = low, red = high.</p>
+      <div class="chart-wrapper"><canvas id="chart-screentime"></canvas></div>
+    </div>
+
+    <div class="glass-card">
+      <h2 class="section-title">🌍 Global Myopia <span>Projection</span></h2>
+      <p class="section-body">Global cases in millions. Orange points = projections. Source: Brien Holden Vision Institute 2016.</p>
+      <div class="chart-wrapper"><canvas id="chart-projection"></canvas></div>
+    </div>
+
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════
+       TAB 4 — METHODOLOGY
+       ════════════════════════════════════════════════════════ -->
+  <section id="tab-methodology" class="tab-panel" role="tabpanel">
+
+    <div class="glass-card">
+      <h2 class="section-title">🔬 Core <span>Formula</span></h2>
+      <p class="section-body">
+        The <strong>diopter (D)</strong> is the unit of optical power — it equals 1 metre divided by the focal length.
+        For the near point formula:
+      </p>
+      <div class="formula-box">D = −100 ÷ distance (cm)</div>
+      <p class="section-body" style="margin-top:.9rem;">
+        At 30 cm → D = −3.33 (moderate myopia range)<br>
+        At 50 cm → D = −2.00 (mild myopia range)<br>
+        The <strong>negative sign</strong> indicates a diverging (concave) lens — used to correct nearsightedness.
+      </p>
+    </div>
+
+    <div class="glass-card">
+      <h2 class="section-title">👁 IPD-Based <span>Distance Estimation</span></h2>
+      <p class="section-body" style="margin-bottom:.75rem;">
+        <strong>IPD</strong> (inter-pupillary distance) is the gap between your two pupil centres — on average 63 mm in adults.
+        Because we know this real-world length, we can use it as a ruler in the camera image:
+      </p>
+      <div class="formula-box" style="font-size:1rem;">
+        distance_mm = (63 mm × focal_px) ÷ IPD_pixels
+      </div>
+      <p class="section-body" style="margin-top:.9rem;">
+        <strong>focal_px</strong> ≈ 650 px — estimated focal length of a typical phone front camera.<br>
+        <strong>IPD_pixels</strong> = pixel gap between landmarks #468 and #473 in each video frame.
+      </p>
+    </div>
+
+    <div class="glass-card">
+      <h2 class="section-title">📏 Credit Card <span>Calibration</span></h2>
+      <p class="section-body">
+        Every screen has a different pixel density (PPI). The ISO 7810 standard defines a credit
+        card as exactly <strong>85.6 mm wide</strong>. Matching an on-screen rectangle to your card gives:
+      </p>
+      <div class="formula-box" style="font-size:1rem;">pixels_per_mm = slider_px ÷ 85.6</div>
+      <p class="section-body" style="margin-top:.9rem;">
+        Saved to <code style="color:var(--mint)">localStorage</code> on your device — never uploaded anywhere.
+      </p>
+    </div>
+
+    <div class="glass-card">
+      <h2 class="section-title">⚠️ Limitations &amp; <span>Disclaimer</span></h2>
+      <p class="section-body">
+        • For <strong>educational awareness only</strong> — not a clinical diagnostic tool.<br>
+        • Assumes average adult IPD (63 mm). Children and individuals with unusual IPD will see less accurate readings.<br>
+        • Accuracy ±15–25% typical. Bright backlighting improves landmark detection.<br>
+        • <strong>Always consult a registered optometrist</strong> for actual eye examination and prescription.
+      </p>
+    </div>
+
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════
+       TAB 5 — ABOUT
+       ════════════════════════════════════════════════════════ -->
+  <section id="tab-about" class="tab-panel" role="tabpanel">
+
+    <div class="glass-card">
+      <h2 class="section-title">🧠 About <span>OcularAI</span></h2>
+      <p class="section-body">
+        OcularAI is an open-source smartphone myopia awareness tool built as a final-year BTech project.
+        Originally a Streamlit Python app, v2.0 is a fully static web app deployed on Vercel — no backend,
+        no sleep delays, and real camera access on any device.
+      </p>
+    </div>
+
+    <div class="glass-card">
+      <h2 class="section-title">⚙️ Tech <span>Stack</span></h2>
+      <div class="metrics-grid">
+        <div class="metric-card"><div class="metric-value" style="font-size:1rem;">MediaPipe</div><div class="metric-label">Face Mesh JS</div></div>
+        <div class="metric-card"><div class="metric-value" style="font-size:1rem;">Chart.js</div><div class="metric-label">Research Charts</div></div>
+        <div class="metric-card"><div class="metric-value" style="font-size:1rem;">Vercel</div><div class="metric-label">Free Hosting</div></div>
+        <div class="metric-card"><div class="metric-value" style="font-size:1rem;">Vanilla JS</div><div class="metric-label">No Framework</div></div>
+      </div>
+    </div>
+
+    <div class="glass-card">
+      <h2 class="section-title">🔗 <span>Links</span></h2>
+      <p class="section-body" style="line-height:2;">
+        📁 GitHub:
+        <a href="https://github.com/thesouravburman/ocular-ai" style="color:var(--cyan);" target="_blank" rel="noopener">
+          github.com/thesouravburman/ocular-ai
+        </a><br>
+        👨‍💻 Author:
+        <a href="https://github.com/thesouravburman" style="color:var(--cyan);" target="_blank" rel="noopener">
+          @thesouravburman
+        </a><br>
+        📄 License: MIT
+      </p>
+    </div>
+
+  </section>
+
+  <footer class="site-footer">
+    OcularAI v2.0 &nbsp;·&nbsp; Built for vision health awareness &nbsp;·&nbsp; Not a medical device
+  </footer>
+
+</div><!-- /.app-container -->
+
+<!-- Load our JS files (mediapipe_worker first — it defines window.OcularUtils) -->
+<script src="mediapipe_worker.js"></script>
+<script src="camera.js"></script>
+
+<script>
+/* ============================================================
+   PARTICLE CANVAS
+   ============================================================ */
+(function () {
+  const cv = document.getElementById('particle-canvas');
+  const cx = cv.getContext('2d');
+  let W, H;
+  const PALETTE = ['#00D4FF', '#7C3AED', '#06FFA5'];
+
+  function resize() { W = cv.width = innerWidth; H = cv.height = innerHeight; }
+  addEventListener('resize', resize);
+  resize();
+
+  class P {
+    constructor() { this.init(); }
+    init() {
+      this.x  = Math.random() * W;
+      this.y  = Math.random() * H;
+      this.vx = (Math.random() - .5) * .38;
+      this.vy = (Math.random() - .5) * .38;
+      this.r  = Math.random() * 1.5 + .4;
+      this.c  = PALETTE[Math.random() * 3 | 0];
+      this.a  = Math.random() * .45 + .12;
+    }
+    tick() {
+      this.x += this.vx; this.y += this.vy;
+      if (this.x < 0 || this.x > W) this.vx *= -1;
+      if (this.y < 0 || this.y > H) this.vy *= -1;
+    }
+    draw() {
+      cx.beginPath();
+      cx.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+      cx.fillStyle = this.c;
+      cx.globalAlpha = this.a;
+      cx.fill();
+    }
+  }
+
+  const pts = Array.from({ length: 75 }, () => new P());
+
+  function lines() {
+    const D = 115;
+    for (let i = 0; i < pts.length; i++)
+      for (let j = i + 1; j < pts.length; j++) {
+        const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y;
+        const d = Math.sqrt(dx * dx + dy * dy);
+        if (d < D) {
+          cx.beginPath();
+          cx.moveTo(pts[i].x, pts[i].y);
+          cx.lineTo(pts[j].x, pts[j].y);
+          cx.strokeStyle = '#00D4FF';
+          cx.globalAlpha = (1 - d / D) * .1;
+          cx.lineWidth = .5;
+          cx.stroke();
+        }
+      }
+  }
+
+  (function loop() {
+    cx.clearRect(0, 0, W, H);
+    cx.globalAlpha = 1;
+    pts.forEach(p => { p.tick(); p.draw(); });
+    lines();
+    requestAnimationFrame(loop);
+  })();
+})();
+
+/* ============================================================
+   TAB SWITCHING
+   ============================================================ */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const t = btn.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(b => {
+      b.classList.remove('active');
+      b.setAttribute('aria-selected', 'false');
+    });
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    btn.setAttribute('aria-selected', 'true');
+    document.getElementById('tab-' + t).classList.add('active');
+    if (t === 'research') initCharts();
+  });
+});
+
+/* ============================================================
+   DIOPTER CALCULATOR
+   ============================================================ */
+function updateCalc() {
+  const d = parseFloat(document.getElementById('dist-input').value) || 30;
+  const D = -100 / d;
+  document.getElementById('diopter-result').textContent = D.toFixed(2) + ' D';
+  const aD = Math.abs(D);
+  let lbl, cls;
+  if (aD < 3)      { lbl = 'Mild';     cls = 'severity-mild'; }
+  else if (aD < 6) { lbl = 'Moderate'; cls = 'severity-moderate'; }
+  else if (aD < 9) { lbl = 'High';     cls = 'severity-high'; }
+  else             { lbl = 'Severe';   cls = 'severity-high'; }
+  const el = document.getElementById('severity-result');
+  el.textContent = lbl; el.className = 'severity-badge ' + cls;
+}
+updateCalc();
+
+/* ============================================================
+   RESEARCH CHARTS (lazy — only when tab opens)
+   ============================================================ */
+let chartsReady = false;
+
+async function initCharts() {
+  if (chartsReady) return;
+  chartsReady = true;
+
+  let data;
+  try {
+    const res = await fetch('data.json');
+    data = await res.json();
+  } catch (e) {
+    console.error('Could not load data.json:', e);
+    return;
+  }
+
+  const BASE = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: { legend: { labels: { color: '#6B8BA4', font: { family: 'Inter', size: 12 } } } },
+    scales: {
+      x: { ticks: { color: '#6B8BA4' }, grid: { color: 'rgba(0,212,255,.06)' } },
+      y: { ticks: { color: '#6B8BA4' }, grid: { color: 'rgba(0,212,255,.06)' } }
+    }
+  };
+
+  /* Chart 1 — prevalence by age */
+  new Chart(document.getElementById('chart-prevalence'), {
+    type: 'line',
+    data: {
+      labels: data.prevalence_by_age.map(d => d.age + ' yr'),
+      datasets: [
+        { label: 'Asia',   data: data.prevalence_by_age.map(d => d.asia),
+          borderColor: '#00D4FF', backgroundColor: 'rgba(0,212,255,.07)',
+          tension: .42, fill: true, pointRadius: 4 },
+        { label: 'Europe', data: data.prevalence_by_age.map(d => d.europe),
+          borderColor: '#7C3AED', backgroundColor: 'rgba(124,58,237,.07)',
+          tension: .42, fill: true, pointRadius: 4 },
+        { label: 'Global', data: data.prevalence_by_age.map(d => d.global),
+          borderColor: '#06FFA5', backgroundColor: 'rgba(6,255,165,.07)',
+          tension: .42, fill: true, pointRadius: 4 }
+      ]
+    },
+    options: { ...BASE, scales: { ...BASE.scales,
+      y: { ...BASE.scales.y, title: { display: true, text: 'Prevalence (%)', color: '#6B8BA4' } }
+    }}
+  });
+
+  /* Chart 2 — screen time risk */
+  new Chart(document.getElementById('chart-screentime'), {
+    type: 'bar',
+    data: {
+      labels: data.screen_time_risk.map(d => d.hours + 'h'),
+      datasets: [{
+        label: 'Myopia Risk (%)',
+        data: data.screen_time_risk.map(d => d.risk),
+        backgroundColor: data.screen_time_risk.map((d, i) =>
+          i < 3 ? 'rgba(6,255,165,.65)' : i < 6 ? 'rgba(255,184,0,.65)' : 'rgba(255,59,59,.65)'
+        ),
+        borderRadius: 5
+      }]
+    },
+    options: BASE
+  });
+
+  /* Chart 3 — global projection */
+  new Chart(document.getElementById('chart-projection'), {
+    type: 'line',
+    data: {
+      labels: data.global_projection.map(d => d.label),
+      datasets: [{
+        label: 'Global Cases (millions)',
+        data: data.global_projection.map(d => d.cases),
+        borderColor: '#7C3AED',
+        backgroundColor: 'rgba(124,58,237,.14)',
+        fill: true, tension: .32, pointRadius: 5,
+        pointBackgroundColor: data.global_projection.map(d =>
+          d.projected ? '#FF6432' : '#7C3AED'
+        )
+      }]
+    },
+    options: BASE
+  });
+}
+</script>
+</body>
+</html>
