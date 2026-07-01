@@ -4,7 +4,7 @@
 ![Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-000000?style=for-the-badge&logo=vercel)
 ![License](https://img.shields.io/badge/License-MIT-06FFA5?style=for-the-badge)
 
-> **Live app → [ocular-ai-eight.vercel.app](https://ocular-ai-eight.vercel.app)**
+> **Live app → [ocularai.vercel.app](https://ocularai.vercel.app)**
 
 OcularAI is an open-source smartphone-based myopia screening tool. It uses
 **MediaPipe Face Mesh** (Google's browser-native AI) to detect iris positions
